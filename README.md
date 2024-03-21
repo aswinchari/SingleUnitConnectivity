@@ -6,3 +6,5 @@ The code in this repository relate to generating networks from single unit spike
 - The properties of these networks may then be studied to inform us about the role of these neurons in driving the networks towards synchronous activity, as is seen in epilepsy. 
 
 The methods are described in further detail in the manuscript 'Single unit-derived connectivity networks in tuberous sclerosis complex reveal propensity for network hypersynchrony driven by tuber-tuber interactions' by Chari et al. 
+
+Data (single unit spike trains and subsequent filters and networks) are available at https://osf.io/ab39m/
