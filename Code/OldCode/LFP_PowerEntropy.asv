@@ -1,0 +1,112 @@
+%% For each file, takes the LFP files and calculates power and entropy in different frequencies over time
+%==========================================================================
+
+%% Define freq bands
+
+eegbands(1).name = 'delta';
+eegbands(2).name = 'theta';
+eegbands(3).name = 'alpha';
+eegbands(4).name = 'beta';
+eegbands(5).name = 'gamma';
+eegbands(6).name = 'highgamma';
+eegbands(7).name = 'ripple';
+eegbands(8).name = 'fastripple';
+
+eegbands(1).freq = [1 4];
+eegbands(2).freq = [4 8];
+eegbands(3).freq = [8 12];
+eegbands(4).freq = [12 20];
+eegbands(5).freq = [20 45];
+eegbands(6).freq = [65 80];
+eegbands(7).freq = [80 200];
+eegbands(8).freq = [200 500];
+
+for a = 1:length(eegbands)
+    eegbands(a).midpoint = mean(eegbands(a).freq);
+end 
+
+%% Load EEG
+
+filelist = dir('SpikesLFP/*_LFP.mat');
+
+for a = 1:length(filelist)
+    
+    load(strcat(filelist(a).folder,'/',filelist(a).name));
+     
+    % Plot some time-frequency plots: time-freq calculation
+    
+    for b = 1:length(eegbands)
+        
+        disp(strcat('EEG Band = ',eegbands(b).name));
+        
+        cfg = [];
+        cfg.method      = 'mtmconvol';
+        cfg.output      = 'pow';
+        cfg.taper       = 'hanning';
+        cfg.pad         = 'nextpow2';
+        cfg.foi         = [eegbands(b).freq(1):1:eegbands(b).freq(2)];  % in the frequencies as above
+        cfg.channel     = 'all';
+        cfg.t_ftimwin   = ones(length(cfg.foi),1).*(9.99);
+        cfg.toi         = 5:10:150;
+
+        [freq] = ft_freqanalysis(cfg,eeg);
+       
+        eegbands(b).mean = mean(sum(freq.powspctrm,2),3)
+        eegbands(b).std = std(sum(freq.powspctrm,2),0,3)
+        
+    end
+    
+    % make a figure from this
+    
+    cols = cbrewer2('qual','Pastel1',9);
+    cols2 = cbrewer2('qual','Set1',9);
+    
+    means = horzcat(eegbands.mean);
+    stds = horzcat(eegbands.std)./sqrt(15);
+    
+    figure
+    hold on
+    x = 1:6;
+    x2 = [x, fliplr(x)];
+    
+    for c = 10:18
+        error = [means(c,:)+stds(c,:), fliplr(means(c,:)-stds(c,:))];
+        fill(x2,error,cols(c-9,:),'EdgeColor','none');
+        plot(x, means(c,:),'Color',cols2(c-9,:));
+    end
+        xlim([0.5 6.5]);
+        xticklabels({eegbands.name});
+        xlabel('Frequency Band');
+        set(gca,'YScale','log');
+        ylabel('Power');
+        title('Shank 2 Power +/- SE (10s time windows) across 9 channels');
+        legend({'','Channel 1','','Channel 2','','Channel 3','','Channel 4','','Channel 5','','Channel 6','','Channel 7','','Channel 8','','Channel 9',})
+        set(gcf,'Position',[0,0,1600,800])
+        saveas(gcf,'Figures/ChannelPower_shank2.png')
+end
+
+clearvars -except eegbands filelist
+%%
+
+for a = 1:length(filelist)
+   
+    load(strcat(filelist(a).folder,'/',filelist(a).name));
+    
+    % run multiscale entropy measures
+    
+    cfg = [];
+    cfg.m                   = 2;
+    cfg.r                   = 0.5;
+    cfg.timwin              = eeg.time{1}(end)-eeg.time{1}(1);
+    cfg.toi                 = median(eeg.time{1});
+    cfg.timescales          = [60,120,240,480,960,1920,3840,7680,15360];
+    cfg.recompute_r         = 'perscale_toi_sp';
+    cfg.coarsegrainmethod   = 'filtskip';
+    cfg.filtmethod          = 'lp';
+    cfg.allowgpu            = true;
+    
+    [mmse] = ft_entropyanalysis(cfg,eeg);
+    
+    
+    
+end
